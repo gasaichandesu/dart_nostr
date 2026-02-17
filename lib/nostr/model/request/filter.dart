@@ -39,12 +39,14 @@ class NostrFilter extends Equatable {
     final t = json['#t'] == null ? null : List<String>.from(json['#t'] as List);
 
     final a = json['#a'] == null ? null : List<String>.from(json['#a'] as List);
-    
-    final since = json['since'] == null ? null : 
-        DateTime.fromMillisecondsSinceEpoch((json['since'] as int) * 1000);
 
-    final until = json['until'] == null ? null :
-        DateTime.fromMillisecondsSinceEpoch((json['until'] as int) * 1000);
+    final since = json['since'] == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch((json['since'] as int) * 1000);
+
+    final until = json['until'] == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch((json['until'] as int) * 1000);
 
     final limit = json['limit'] as int?;
 
@@ -104,13 +106,13 @@ class NostrFilter extends Equatable {
   /// Serialize a [NostrFilter] to a [Map<String, dynamic>]
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
-      if (ids != null) 'ids': ids,
-      if (authors != null) 'authors': authors,
-      if (kinds != null) 'kinds': kinds,
-      if (e != null) '#e': e,
-      if (p != null) '#p': p,
-      if (t != null) '#t': t,
-      if (a != null) '#a': a,
+      if (ids != null && ids!.isNotEmpty) 'ids': ids,
+      if (authors != null && authors!.isNotEmpty) 'authors': authors,
+      if (kinds != null && kinds!.isNotEmpty) 'kinds': kinds,
+      if (e != null && e!.isNotEmpty) '#e': e,
+      if (p != null && p!.isNotEmpty) '#p': p,
+      if (t != null && t!.isNotEmpty) '#t': t,
+      if (a != null && a!.isNotEmpty) '#a': a,
       if (since != null) 'since': since!.millisecondsSinceEpoch ~/ 1000,
       if (until != null) 'until': until!.millisecondsSinceEpoch ~/ 1000,
       if (limit != null) 'limit': limit,

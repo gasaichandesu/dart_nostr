@@ -29,7 +29,11 @@ class NostrLogger {
   }
 
   /// Logs a message, and an optional error.
-  void log(String message, [Object? error]) {
+  void log(
+    String message, [
+    Object? error,
+    StackTrace? stackTrace,
+  ]) {
     final isLogsEnabled = _debugOptions.isLogsEnabled;
 
     if (!isLogsEnabled) {
@@ -48,6 +52,7 @@ class NostrLogger {
       message,
       name: logDisplayName,
       error: error,
+      stackTrace: stackTrace,
     );
   }
 }

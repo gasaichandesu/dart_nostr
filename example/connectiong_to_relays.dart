@@ -17,7 +17,7 @@ Future<void> main() async {
     shouldReconnectToRelayOnNotice: true,
   );
 
-  await Future.delayed(const Duration(seconds: 5));
+  await Future<void>.delayed(const Duration(seconds: 5));
 
   await Nostr.instance.services.relays.reconnectToRelays(
     connectionTimeout: const Duration(seconds: 5),
@@ -35,7 +35,7 @@ Future<void> main() async {
     shouldReconnectToRelayOnNotice: true,
   );
 
-  await Future.delayed(const Duration(seconds: 5));
+  await Future<void>.delayed(const Duration(seconds: 5));
 
   await Nostr.instance.services.relays.disconnectFromRelays(
     closeCode: (relayUrl) {

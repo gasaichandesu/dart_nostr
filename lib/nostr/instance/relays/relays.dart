@@ -9,7 +9,7 @@ import 'package:dart_nostr/nostr/instance/registry.dart';
 import 'package:dart_nostr/nostr/instance/relays/base/relays.dart';
 import 'package:dart_nostr/nostr/instance/streams.dart';
 import 'package:dart_nostr/nostr/instance/web_sockets.dart';
-import 'package:dart_nostr/nostr/model/ease.dart';
+import 'package:dart_nostr/nostr/model/eose.dart';
 import 'package:dart_nostr/nostr/model/ok.dart';
 import 'package:dart_nostr/nostr/model/relay.dart';
 import 'package:dart_nostr/nostr/model/relay_informations.dart';
@@ -176,7 +176,7 @@ class NostrRelays implements NostrRelaysBase {
           relay: relayUrl,
         );
 
-        relay.socket.sink.add(serialized);
+        _trySendToRelay(relay.socket, serialized, relay.url);
         logger.log(
           'event with id: ${event.id} is sent to relay with url: ${relay.url}',
         );
@@ -229,7 +229,7 @@ class NostrRelays implements NostrRelaysBase {
           },
         );
 
-        relay.socket.sink.add(serialized);
+        _trySendToRelay(relay.socket, serialized, relayUrl);
         logger.log(
           'event with id: ${event.id} is sent to relay with url: $relayUrl',
         );
@@ -260,7 +260,7 @@ class NostrRelays implements NostrRelaysBase {
           relay: relayUrl,
         );
 
-        relay.socket.sink.add(serialized);
+        _trySendToRelay(relay.socket, serialized, relay.url);
         logger.log(
           'Count Event with subscription id: ${countEvent.subscriptionId} is sent to relay with url: ${relay.url}',
         );
@@ -303,7 +303,7 @@ class NostrRelays implements NostrRelaysBase {
         );
 
         final serialized = countEvent.serialized();
-        relay.socket.sink.add(serialized);
+        _trySendToRelay(relay.socket, serialized, relayUrl);
         logger.log(
           'count event with subscription id: ${countEvent.subscriptionId} is sent to relay with url: $relayUrl',
         );
@@ -326,6 +326,7 @@ class NostrRelays implements NostrRelaysBase {
   NostrEventsStream startEventsSubscription({
     required NostrRequest request,
     void Function(String relay, NostrRequestEoseCommand ease)? onEose,
+    void Function(String relay, NostrClosedCommand closed)? onClosed,
     bool useConsistentSubscriptionIdBasedOnRequestData = false,
     List<String>? relays,
   }) {
@@ -348,7 +349,15 @@ class NostrRelays implements NostrRelaysBase {
             );
           }
 
-          relay.socket.sink.add(serialized);
+          if (onClosed != null) {
+            _registerOnClosedCallBack(
+              subscriptionId: request.subscriptionId!,
+              onClosed: onClosed,
+              relay: relayUrl,
+            );
+          }
+
+          _trySendToRelay(relay.socket, serialized, relayUrl);
           logger.log(
             'request with subscription id: ${request.subscriptionId} is sent to relay with url: $relayUrl',
           );
@@ -394,7 +403,7 @@ class NostrRelays implements NostrRelaysBase {
               //   );
               // }
 
-              relay.socket.sink.add(serialized);
+              _trySendToRelay(relay.socket, serialized, relayUrl);
               logger.log(
                 'request with subscription id: ${request.subscriptionId} is sent to relay with url: $relayUrl',
               );
@@ -436,6 +445,7 @@ class NostrRelays implements NostrRelaysBase {
     required NostrRequest request,
     required Duration timeout,
     void Function(String relay, NostrRequestEoseCommand ease)? onEose,
+    void Function(String relay, NostrClosedCommand closed)? onClosed,
     bool useConsistentSubscriptionIdBasedOnRequestData = false,
     bool shouldThrowErrorOnTimeoutWithoutEose = true,
     List<String>? relays,
@@ -445,6 +455,7 @@ class NostrRelays implements NostrRelaysBase {
     final subscription = startEventsSubscription(
       request: request,
       onEose: onEose,
+      onClosed: onClosed,
       useConsistentSubscriptionIdBasedOnRequestData:
           useConsistentSubscriptionIdBasedOnRequestData,
     );
@@ -522,7 +533,9 @@ class NostrRelays implements NostrRelaysBase {
     if (relay != null) {
       final registeredRelay = nostrRegistry.getRelayWebSocket(relayUrl: relay);
 
-      registeredRelay?.sink.add(serialized);
+      if (registeredRelay != null) {
+        _trySendToRelay(registeredRelay, serialized, relay);
+      }
 
       logger.log(
         'Close request with subscription id: $subscriptionId is sent to relay with url: $relay',
@@ -532,7 +545,7 @@ class NostrRelays implements NostrRelaysBase {
     }
     _runFunctionOverRelationIteration(
       (relay) {
-        relay.socket.sink.add(serialized);
+        _trySendToRelay(relay.socket, serialized, relay.url);
         logger.log(
           'Close request with subscription id: $subscriptionId is sent to relay with url: ${relay.url}',
         );
@@ -640,6 +653,11 @@ class NostrRelays implements NostrRelaysBase {
             relay: relay,
             countResponse: countResponse,
           );
+        } else if (NostrClosedCommand.canBeDeserialized(data)) {
+          _handleClosedCommandMessageFromRelay(
+            closedCommand: NostrClosedCommand.fromRelayMessage(data),
+            relay: relay,
+          );
         } else {
           logger.log(
             'received unknown message from relay: $relay, message: $d',
@@ -720,10 +738,11 @@ class NostrRelays implements NostrRelaysBase {
       final decoded = jsonDecode(res.body) as Map<String, dynamic>;
 
       return RelayInformations.fromNip11Response(decoded);
-    } catch (e) {
+    } catch (e, stackTrace) {
       logger.log(
         'error while getting relay informations from nip11 for relay url: $relayUrl',
         e,
+        stackTrace,
       );
 
       if (throwExceptionIfExists) {
@@ -946,12 +965,13 @@ class NostrRelays implements NostrRelaysBase {
               relayUrl: relay,
               webSocket: relayWebSocket,
             );
-            logger.log(
-              'the websocket for the relay with url: $relay, is registered.',
-            );
-            logger.log(
-              'listening to the websocket for the relay with url: $relay...',
-            );
+            logger
+              ..log(
+                'the websocket for the relay with url: $relay, is registered.',
+              )
+              ..log(
+                'listening to the websocket for the relay with url: $relay...',
+              );
 
             if (!lazyListeningToRelays) {
               startListeningToRelay(
@@ -969,7 +989,7 @@ class NostrRelays implements NostrRelaysBase {
             }
           },
         );
-      } catch (e) {
+      } on Object catch (e) {
         onRelayConnectionError?.call(relay, e, null);
       }
     }
@@ -1002,7 +1022,7 @@ class NostrRelays implements NostrRelaysBase {
       }
 
       return false;
-    } catch (e) {
+    } on Object catch (e) {
       return false;
     }
   }
@@ -1047,7 +1067,7 @@ class NostrRelays implements NostrRelaysBase {
     }
   }
 
-  void _handleNoticeFromRelay({
+  Future<void> _handleNoticeFromRelay({
     required NostrNotice notice,
     required String relay,
     required void Function(
@@ -1068,7 +1088,7 @@ class NostrRelays implements NostrRelaysBase {
     required Duration connectionTimeout,
     required bool ignoreConnectionException,
     required bool lazyListeningToRelays,
-  }) {
+  }) async {
     logger.log(
       'received notice with message: ${notice.message} from relay: $relay',
     );
@@ -1076,10 +1096,10 @@ class NostrRelays implements NostrRelaysBase {
     if (nostrRegistry.isRelayRegistered(relay)) {
       final registeredRelay = nostrRegistry.getRelayWebSocket(relayUrl: relay);
 
-      registeredRelay?.sink.close().then((value) {
+      return registeredRelay?.sink.close().then((value) async {
         final relayUnregistered = nostrRegistry.unregisterRelay(relay);
 
-        _reconnectToRelay(
+        await _reconnectToRelay(
           relayUnregistered: relayUnregistered,
           relay: relay,
           onRelayListening: onRelayListening,
@@ -1144,6 +1164,30 @@ class NostrRelays implements NostrRelaysBase {
     eoseCallBack?.call(relay, eoseCommand);
   }
 
+  void _registerOnClosedCallBack({
+    required String subscriptionId,
+    required void Function(String relay, NostrClosedCommand closed) onClosed,
+    required String relay,
+  }) {
+    nostrRegistry.registerClosedCommandCallBack(
+      subscriptionId: subscriptionId,
+      onClosed: onClosed,
+      relay: relay,
+    );
+  }
+
+  void _handleClosedCommandMessageFromRelay({
+    required NostrClosedCommand closedCommand,
+    required String relay,
+  }) {
+    final closedCallBack = nostrRegistry.getClosedCommandCallBack(
+      subscriptionId: closedCommand.subscriptionId,
+      relay: relay,
+    );
+
+    closedCallBack?.call(relay, closedCommand);
+  }
+
   void _registerOnCountCallBack({
     required String subscriptionId,
     required void Function(String relay, NostrCountResponse countResponse)
@@ -1170,6 +1214,20 @@ class NostrRelays implements NostrRelaysBase {
       relay,
       countResponse,
     );
+  }
+
+  bool _trySendToRelay(
+    WebSocketChannel socket,
+    String serialized,
+    String relayUrl,
+  ) {
+    try {
+      socket.sink.add(serialized);
+      return true;
+    } on Object catch (e, stackTrace) {
+      logger.log('failed to send message to relay: $relayUrl', e, stackTrace);
+      return false;
+    }
   }
 
   void _runFunctionOverRelationIteration(

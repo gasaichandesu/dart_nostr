@@ -1,5 +1,6 @@
+import 'package:dart_nostr/nostr/model/closed.dart';
 import 'package:dart_nostr/nostr/model/count.dart';
-import 'package:dart_nostr/nostr/model/ease.dart';
+import 'package:dart_nostr/nostr/model/eose.dart';
 import 'package:dart_nostr/nostr/model/event/event.dart';
 import 'package:dart_nostr/nostr/model/nostr_events_stream.dart';
 import 'package:dart_nostr/nostr/model/ok.dart';
@@ -61,6 +62,7 @@ abstract class NostrRelaysBase {
   NostrEventsStream startEventsSubscription({
     required NostrRequest request,
     void Function(String relay, NostrRequestEoseCommand ease)? onEose,
+    void Function(String relay, NostrClosedCommand closed)? onClosed,
     bool useConsistentSubscriptionIdBasedOnRequestData = false,
   });
 
@@ -68,6 +70,7 @@ abstract class NostrRelaysBase {
     required NostrRequest request,
     required Duration timeout,
     void Function(String relay, NostrRequestEoseCommand ease)? onEose,
+    void Function(String relay, NostrClosedCommand closed)? onClosed,
     bool useConsistentSubscriptionIdBasedOnRequestData = false,
     bool shouldThrowErrorOnTimeoutWithoutEose = true,
   });

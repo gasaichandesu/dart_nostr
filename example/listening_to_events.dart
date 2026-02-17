@@ -1,5 +1,6 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:dart_nostr/dart_nostr.dart';
 
@@ -24,14 +25,13 @@ void main() async {
     filters: const <NostrFilter>[
       NostrFilter(
         kinds: [1985],
-        t: ["gathr.organization.project.cancel"],
+        t: ['gathr.organization.project.cancel'],
         limit: 2,
       ),
     ],
   );
 
   // Now we create the stream of that request.
-  // ignore: unused_local_variable
   final requestStream = Nostr.instance.services.relays.startEventsSubscription(
     request: request,
     onEose: (relay, ease) {

@@ -5,6 +5,7 @@ abstract class NostrConstants {
   static const String count = 'COUNT';
   static const String ok = 'OK';
   static const String close = 'CLOSE';
+  static const String closed = 'CLOSED';
   static const String eose = 'EOSE';
 
   static const String npub = 'npub';

@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:dart_nostr/nostr/core/exceptions.dart';
 import 'package:dart_nostr/nostr/core/utils.dart';
+import 'package:dart_nostr/nostr/model/closed.dart';
 import 'package:dart_nostr/nostr/model/count.dart';
-import 'package:dart_nostr/nostr/model/ease.dart';
+import 'package:dart_nostr/nostr/model/eose.dart';
 import 'package:dart_nostr/nostr/model/event/event.dart';
 import 'package:dart_nostr/nostr/model/ok.dart';
 import 'package:meta/meta.dart';
@@ -40,6 +41,9 @@ class NostrRegistry {
 
   /// This is the registry which will have all count responses callbacks.
   final countResponseCallBacks = RelayCallbackRegister<NostrCountResponse>();
+
+  /// This is the registry which will have all closed command callbacks.
+  final closedCommandCallBacks = RelayCallbackRegister<NostrClosedCommand>();
 
   /// Registers a [WebSocket] to the registry with the given [relayUrl].
   /// If a [WebSocket] is already registered with the given [relayUrl], it will be replaced.
@@ -82,6 +86,7 @@ class NostrRegistry {
     okCommandCallBacks.clear();
     eoseCommandCallBacks.clear();
     countResponseCallBacks.clear();
+    closedCommandCallBacks.clear();
   }
 
   /// Wether a [WebSocket] is registered with the given [relayUrl].
@@ -185,6 +190,32 @@ class NostrRegistry {
         getOrCreateRegister(countResponseCallBacks, relay);
 
     return relayCountRegister[subscriptionId];
+  }
+
+  /// Registers a closed command callback to the registry with the given [subscriptionId].
+  void registerClosedCommandCallBack({
+    required String subscriptionId,
+    required void Function(String relay, NostrClosedCommand closed) onClosed,
+    required String relay,
+  }) {
+    final relayClosedRegister =
+        getOrCreateRegister(closedCommandCallBacks, relay);
+
+    relayClosedRegister[subscriptionId] = onClosed;
+  }
+
+  /// Returns a closed command callback from the registry with the given [subscriptionId].
+  void Function(
+    String relay,
+    NostrClosedCommand closed,
+  )? getClosedCommandCallBack({
+    required String subscriptionId,
+    required String relay,
+  }) {
+    final relayClosedRegister =
+        getOrCreateRegister(closedCommandCallBacks, relay);
+
+    return relayClosedRegister[subscriptionId];
   }
 
   /// Clears the events registry.

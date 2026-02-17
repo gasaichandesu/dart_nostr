@@ -1,4 +1,3 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 
 import 'package:dart_nostr/nostr/core/constants.dart';
@@ -22,8 +21,11 @@ class NostrRequestEoseCommand extends Equatable {
     return decoded.first == NostrConstants.eose;
   }
 
-  static NostrRequestEoseCommand fromRelayMessage(String dataFromRelay) {
-    assert(canBeDeserialized(dataFromRelay));
+  factory NostrRequestEoseCommand.fromRelayMessage(String dataFromRelay) {
+    assert(
+      canBeDeserialized(dataFromRelay),
+      '[dataFromRelay] should be json decodable',
+    );
 
     final decoded = jsonDecode(dataFromRelay) as List;
 
